@@ -3,6 +3,8 @@ Resumen del trabajo: (EN PROCESO)
 
 ## Scripts
 
+**read_cdfs.ipynb**: Notebook auxiliar para leer información de archivos NETCDFs.
+
 ### Generación de los datos de rocío recolectable
 **netcdfs_dewyield_CERRA.py**: Script que genera una archivo NETCDF para cada año con los datos de rocío recolectable por hora obtenidos de los datos de CERRA cada seis horas entre 1991 y 2020.
 
