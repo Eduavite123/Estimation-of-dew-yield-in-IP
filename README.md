@@ -16,4 +16,8 @@ Resumen del trabajo: (EN PROCESO)
 **CERRA_WRF_comp.py**: (EN PROCESO) Script que genera un plot que compara la media de rocío recolectable al año en el periodo 1991-2020 de los datos CERRA y el modelo WRF. Incluye la interpolación de los datos WRF para adaptarlos a la rejilla de CERRA (de 5km a 5,5km) y la generación de archivos NETCDFs con las medias correspondientes para su futuro análisis.
 
 ## Figuras
+<<<<<<< HEAD
 **CERRA_WRF_dewyiled.png** Comparación lado a lado de la media de producción de rocío en el periodo 1991-2020 en el modelo de WRF y el reanálisis de CERRA.
+=======
+(EN PROCESO)
+>>>>>>> c7bcf6e621872e5535baeb1d596b5617a4c35ca0
