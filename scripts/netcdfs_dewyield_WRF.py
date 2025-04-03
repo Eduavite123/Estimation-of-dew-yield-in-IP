@@ -110,7 +110,7 @@ for year in range(1991,2020+1):
     
     hours_since_start=(time-start).astype('timedelta64[h]').astype('float')
 
-    nc_CERRA= xr.Dataset(
+    nc_WRF= xr.Dataset(
         coords={
             'latitude': (['latitude', 'longitude'], lats_W),
             'longitude': (['latitude', 'longitude'], lons_W),
@@ -122,4 +122,4 @@ for year in range(1991,2020+1):
     )
     #Falta añadir los atributos de las coordenadas y la variable
 
-    nc_CERRA.to_netcdf(f'scripts\\dewyield_results\\WRF\\dew_yield_WRF_{year}.nc')
+    nc_WRF.to_netcdf(f'scripts\\dewyield_results\\WRF\\dew_yield_WRF_{year}.nc')

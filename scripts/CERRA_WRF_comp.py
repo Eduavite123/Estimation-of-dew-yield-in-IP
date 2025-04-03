@@ -1,4 +1,7 @@
-#Script que genera un plot para comparar la producción de rocío por hora en WRF y CERRA entre los años 1991 y 2020.
+#Script que genera un plot para comparar la media de producción de rocío por año en WRF y CERRA 
+# entre los años 1991 y 2020.
+#También genera archivos netcdf simples con las medias para un mejor manejo en sus análisis.
+#Incluye la interpolación de los datos de WRF a la malla de CERRA.
 
 import xarray as xr 
 import numpy as np
@@ -91,6 +94,7 @@ h_mean = mean_dewyield_W.values[mask]
 #Interpolación de los datos WRF a la malla de CERRA
 h_WRF_regrid = griddata((lon,lat), h_mean, (lons_C, lats_C), method='linear')
 
+#Aplicamos la máscara de mar
 mean_dewyield_W = h_WRF_regrid*land_mask
 #...............................................................
 
@@ -99,3 +103,31 @@ leyenda='Producción de rocío (mm/año)'
 title= 'Producción de rocío recolectable entre 1991 y 2020'
 outroute='figures\\CERRA_WRF_dewyield.png'
 plot_dual(lons_C, lats_C, mean_dewyield_C, mean_dewyield_W, leyenda, 'CERRA', 'WRF', title, outroute)
+
+#........................ARCHIVOS NETCDF.........................
+#CERRA
+# nc_CERRA= xr.Dataset(
+#     coords={
+#         'latitude': (['latitude', 'longitude'], lats_C),
+#         'longitude': (['latitude', 'longitude'], lons_C),
+#     },
+#     data_vars={
+#         'mean_dew_yield': (['latitude', 'longitude'], mean_dewyield_C.values)
+#     }
+# )
+# #Falta añadir los atributos de las coordenadas y la variable
+# nc_CERRA.to_netcdf(f'scripts\\dewyield_results\\mean_dy_CERRA.nc')
+
+# #WRF
+# nc_WRF= xr.Dataset(
+#     coords={
+#         'latitude': (['latitude', 'longitude'], lats_C),
+#         'longitude': (['latitude', 'longitude'], lons_C),
+#     },
+#     data_vars={
+#         'mean_dew_yield': (['latitude', 'longitude'], mean_dewyield_W)
+#     }
+# )
+# #Falta añadir los atributos de las coordenadas y la variable
+# nc_WRF.to_netcdf(f'scripts\\dewyield_results\\mean_dy_WRF.nc')
+#..................................................................
