@@ -1,5 +1,5 @@
 #Script que genera un plot para comparar la media de producción de rocío por año en WRF y CERRA 
-# entre los años 1991 y 2020.
+# entre los años 1991 y 2020 en la Península Ibérica.
 #También genera archivos netcdf simples con las medias para un mejor manejo en sus análisis.
 #Incluye la interpolación de los datos de WRF a la malla de CERRA.
 
@@ -12,22 +12,28 @@ from scipy.interpolate import griddata
 
 #--------------------------------------------PLOT--------------------------------------------------------------
 def plot_dual(lons, lats, h_mean1, h_mean2, label, title1, title2, general_title, outroute):
+    # Calcular límites comunes para la barra de color
+    vminimo = min(np.nanmin(h_mean1), np.nanmin(h_mean2))
+    vmaximo = max(np.nanmax(h_mean1), np.nanmax(h_mean2))
+
     fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw={'projection': ccrs.LambertConformal(central_longitude=3)}, figsize=(18, 8))
     fig.suptitle(general_title, fontsize=16, x=0.515)
 
-    ax1.set_extent([-10, 4.5, 35.97, 44.25], crs=ccrs.PlateCarree()) # zoom a península ibérica
+    # Primer gráfico
+    ax1.set_extent([-10, 4.5, 35.97, 44.25], crs=ccrs.PlateCarree())  # Zoom a península ibérica
     ax1.coastlines()
-    c1 = ax1.pcolormesh(lons, lats, h_mean1, cmap='viridis', shading='auto', transform=ccrs.PlateCarree())
+    c1 = ax1.pcolormesh(lons, lats, h_mean1, cmap='viridis', shading='auto', transform=ccrs.PlateCarree(), vmin=vminimo, vmax=vmaximo)
     ax1.set_title(title1)
 
-    ax2.set_extent([-10, 4.5, 35.97, 44.25], crs=ccrs.PlateCarree()) # zoom a península ibérica
+    # Segundo gráfico
+    ax2.set_extent([-10, 4.5, 35.97, 44.25], crs=ccrs.PlateCarree())  # Zoom a península ibérica
     ax2.coastlines()
-    c2 = ax2.pcolormesh(lons, lats, h_mean2, cmap='viridis', shading='auto', transform=ccrs.PlateCarree())
+    c2 = ax2.pcolormesh(lons, lats, h_mean2, cmap='viridis', shading='auto', transform=ccrs.PlateCarree(), vmin=vminimo, vmax=vmaximo)
     ax2.set_title(title2)
 
+    # Barra de color compartida
     cbar = fig.colorbar(c1, ax=[ax1, ax2], orientation='horizontal', shrink=0.8, pad=0.05)
     cbar.set_label(label)
-    #fig.subplots_adjust(wspace=0.05, bottom=0.25, top=0.85)  
 
     plt.savefig(outroute, dpi=300, bbox_inches='tight')
     plt.close(fig)
@@ -96,6 +102,8 @@ h_WRF_regrid = griddata((lon,lat), h_mean, (lons_C, lats_C), method='linear')
 
 #Aplicamos la máscara de mar
 mean_dewyield_W = h_WRF_regrid*land_mask
+#Hay mucho ruido en Francia, en la frontera de los datos, eliminamos esos valores
+mean_dewyield_W=np.where(mean_dewyield_W>1000, np.nan, mean_dewyield_W)
 #...............................................................
 
 #Creamos el plot
@@ -105,7 +113,7 @@ outroute='figures\\CERRA_WRF_dewyield.png'
 plot_dual(lons_C, lats_C, mean_dewyield_C, mean_dewyield_W, leyenda, 'CERRA', 'WRF', title, outroute)
 
 #........................ARCHIVOS NETCDF.........................
-#CERRA
+# #CERRA
 # nc_CERRA= xr.Dataset(
 #     coords={
 #         'latitude': (['latitude', 'longitude'], lats_C),

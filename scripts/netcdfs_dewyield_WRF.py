@@ -1,4 +1,5 @@
-#Script que genera netcdf's con la producción de rocío por hora de WRF entre los años 1991 y 2020.
+#Script que genera netcdf's con la producción de rocío por hora de WRF entre los años 1991 y 2020
+# en la Península Ibérica.
 
 import xarray as xr 
 import numpy as np

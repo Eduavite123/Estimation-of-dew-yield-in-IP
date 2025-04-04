@@ -13,11 +13,11 @@ Resumen del trabajo: (EN PROCESO)
 (faltan los atributos en los NETCDFs, si son necesarios se añadirán en el futuro)
 
 ### Estudio de los campos medios
-**CERRA_WRF_comp.py**: (EN PROCESO) Script que genera un plot que compara la media de rocío recolectable al año en el periodo 1991-2020 de los datos CERRA y el modelo WRF. Incluye la interpolación de los datos WRF para adaptarlos a la rejilla de CERRA (de 5km a 5,5km) y la generación de archivos NETCDFs con las medias correspondientes para su futuro análisis.
+**CERRA_WRF_comp.py**: Script que genera un plot que compara la media de rocío recolectable al año en el periodo 1991-2020 de los datos CERRA y el modelo WRF. Incluye la interpolación de los datos WRF para adaptarlos a la rejilla de CERRA (de 5km a 5,5km) y la generación de archivos NETCDFs con las medias correspondientes para su futuro análisis.
+
+**campo_medio-varianzas**: (EN PROCESO) Script que calcula la diferencia relativa de la media de producción de rocío en el periodo en la PI entre WRF y CERRA y realiza el test U de Mann-Whitney. También calcula las varianzas y aplica el test F de Snedecon.
 
 ## Figuras
-<<<<<<< HEAD
 **CERRA_WRF_dewyiled.png** Comparación lado a lado de la media de producción de rocío en el periodo 1991-2020 en el modelo de WRF y el reanálisis de CERRA.
-=======
-(EN PROCESO)
->>>>>>> c7bcf6e621872e5535baeb1d596b5617a4c35ca0
+
+**dif_relativas.png** Diferencias relativas de la media de producción de rocío en la PI entre el modelo WRF y los datos CERRA.
