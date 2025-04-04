@@ -11,6 +11,7 @@ import os
 from scipy.interpolate import griddata
 
 #--------------------------------------------PLOT--------------------------------------------------------------
+#Función que genera el gráfico de comparación entre los dos periodos
 def plot_dual(lons, lats, h_mean1, h_mean2, label, title1, title2, general_title, outroute):
     # Calcular límites comunes para la barra de color
     vminimo = min(np.nanmin(h_mean1), np.nanmin(h_mean2))
@@ -40,13 +41,14 @@ def plot_dual(lons, lats, h_mean1, h_mean2, label, title1, title2, general_title
 #--------------------------------------------------------------------------------------------------------------
 
 #----------------------------------------MEAN DEW YIELD--------------------------------------------------------
+#Función que calcula la media de producción de rocío por año en todo el periodo
 def mean_dewyield(input_folder):
     #Creamos lista con los archivos
     files = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if f.endswith('.nc')]
     #Cargamos y concatenamos los archivos
     mean_sum=0
     count=0
-    for f in files:
+    for f in files: #se hace media acumulativa para evitar problemas de memoria
         with xr.open_dataset(f) as ds:
             mean_sum += ds['dew_yield'].mean(dim='time')
             count += 1
@@ -102,7 +104,7 @@ h_WRF_regrid = griddata((lon,lat), h_mean, (lons_C, lats_C), method='linear')
 
 #Aplicamos la máscara de mar
 mean_dewyield_W = h_WRF_regrid*land_mask
-#Hay mucho ruido en Francia, en la frontera de los datos, eliminamos esos valores
+#Hay mucho ruido en Francia en la frontera de la malla, eliminamos esos valores
 mean_dewyield_W=np.where(mean_dewyield_W>1000, np.nan, mean_dewyield_W)
 #...............................................................
 
@@ -113,29 +115,29 @@ outroute='figures\\CERRA_WRF_dewyield.png'
 plot_dual(lons_C, lats_C, mean_dewyield_C, mean_dewyield_W, leyenda, 'CERRA', 'WRF', title, outroute)
 
 #........................ARCHIVOS NETCDF.........................
-# #CERRA
-# nc_CERRA= xr.Dataset(
-#     coords={
-#         'latitude': (['latitude', 'longitude'], lats_C),
-#         'longitude': (['latitude', 'longitude'], lons_C),
-#     },
-#     data_vars={
-#         'mean_dew_yield': (['latitude', 'longitude'], mean_dewyield_C.values)
-#     }
-# )
-# #Falta añadir los atributos de las coordenadas y la variable
-# nc_CERRA.to_netcdf(f'scripts\\dewyield_results\\mean_dy_CERRA.nc')
+#CERRA
+nc_CERRA= xr.Dataset(
+    coords={
+        'latitude': (['latitude', 'longitude'], lats_C),
+        'longitude': (['latitude', 'longitude'], lons_C),
+    },
+    data_vars={
+        'mean_dew_yield': (['latitude', 'longitude'], mean_dewyield_C.values)
+    }
+)
+#Falta añadir los atributos de las coordenadas y la variable
+nc_CERRA.to_netcdf(f'scripts\\dewyield_results\\mean_dy_CERRA.nc')
 
-# #WRF
-# nc_WRF= xr.Dataset(
-#     coords={
-#         'latitude': (['latitude', 'longitude'], lats_C),
-#         'longitude': (['latitude', 'longitude'], lons_C),
-#     },
-#     data_vars={
-#         'mean_dew_yield': (['latitude', 'longitude'], mean_dewyield_W)
-#     }
-# )
-# #Falta añadir los atributos de las coordenadas y la variable
-# nc_WRF.to_netcdf(f'scripts\\dewyield_results\\mean_dy_WRF.nc')
+#WRF
+nc_WRF= xr.Dataset(
+    coords={
+        'latitude': (['latitude', 'longitude'], lats_C),
+        'longitude': (['latitude', 'longitude'], lons_C),
+    },
+    data_vars={
+        'mean_dew_yield': (['latitude', 'longitude'], mean_dewyield_W)
+    }
+)
+#Falta añadir los atributos de las coordenadas y la variable
+nc_WRF.to_netcdf(f'scripts\\dewyield_results\\mean_dy_WRF.nc')
 #..................................................................
