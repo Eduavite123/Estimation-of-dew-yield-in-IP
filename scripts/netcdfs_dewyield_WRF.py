@@ -5,6 +5,8 @@ import xarray as xr
 import numpy as np
 from numba import njit
 from scipy.interpolate import griddata
+from datetime import datetime
+
 
 #--------------------FUNCIÓN QUE CALCULA MEDIA ANUAL DE DEW YIELD P.U. TIEMPO-------------
 @njit
@@ -74,7 +76,22 @@ mask_sea_nob_W = np.repeat(mask_sea, 1460, axis=0)
 mask_sea_b_W = np.repeat(mask_sea, 1464, axis=0)
 #-----------------------------
 
-for year in range(1991,2020+1):
+#Para la interpolación necesitamos:
+fn='scripts\\data\\CERRA\\CERRA_IP_3h_1991.nc'
+cerraf=xr.open_dataset(fn)
+cerranb=cerraf.data_vars['lsm'].values
+
+lons_C=cerraf.coords['longitude'].values
+lats_C=cerraf.coords['latitude'].values
+cerraf.close()
+fn='scripts\\data\\CERRA\\CERRA_IP_3h_1992.nc'
+cerraf=xr.open_dataset(fn)
+cerrab=cerraf.data_vars['lsm'].values
+cerraf.close()
+
+for year in range(1994,2020+1):
+    startTime = datetime.now() #para medir el tiempo de ejecución
+
     fn=f'scripts\\data\\WRF\\Evaluation\\cloudfrac_d01_{year}_time.nc'
     cloudfracf=xr.open_dataset(fn)
     N=cloudfracf.data_vars['CLDFRA'].values*8 #cobertura de nubes (octas)
@@ -102,19 +119,48 @@ for year in range(1991,2020+1):
         
     h_WRF=hpt(RH, T, H, N, v, mask_sea, 6)
 
+    #.................Interpolación de datos WRF....................
+    #Creación de la matriz con dimensiones de CERRA
+    if bis==True:
+        [ntime, nlat, nlon]=cerrab.shape
+        land_mask=cerrab
+    else:
+        [ntime, nlat, nlon]=cerranb.shape
+        land_mask=cerranb
+    h_WRF_regrid=np.full((ntime, nlat, nlon), np.nan)
+    #De paso ya ajustamos también la máscara de mar
+    land_mask=np.where(land_mask==0.0, np.nan, land_mask)
+
+    #Máscara de valores válidos
+    mask=~np.isnan(h_WRF[1,:,:])
+
+    #Extraemos los datos válidos con la máscara
+    lat = lats_W[mask]
+    lon = lons_W[mask]
+    h_mean = h_WRF[:,mask]
+
+    #Interpolación de los datos WRF a la malla de CERRA
+    for i in range(ntime):
+        h_WRF_regrid[i,:,:] = griddata((lon,lat), h_mean[i,:], (lons_C, lats_C), method='linear')
+
+    #Aplicamos la máscara de mar
+    h_WRF = h_WRF_regrid*land_mask
+
+    print(datetime.now() - startTime)
+    #...............................................................
+
     #Creamos el archivo NETCDF
     #variable temporal:
     start=np.datetime64(f'{year}-01-01T00:00:00')
     end=np.datetime64(f'{year}-12-31T18:00:00')
     time = np.arange(start, end+np.timedelta64(6,'h'), np.timedelta64(6, 'h'))
-
     
     hours_since_start=(time-start).astype('timedelta64[h]').astype('float')
 
     nc_WRF= xr.Dataset(
         coords={
-            'latitude': (['latitude', 'longitude'], lats_W),
-            'longitude': (['latitude', 'longitude'], lons_W),
+            'latitude': (['latitude', 'longitude'], lats_C),
+            'longitude': (['latitude', 'longitude'], lons_C),
             'time': (['time'], hours_since_start)
         },
         data_vars={
