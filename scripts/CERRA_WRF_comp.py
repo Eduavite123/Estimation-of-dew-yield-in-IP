@@ -4,13 +4,14 @@
 # - Calcula y genera un plot de la diferencia relativa de las medias de los modelos. Realiza también un test U 
 #   de Mann-Whitney.
 # - Calcula las desviaciones típicas y genera un plot del cociente de las desviaciones de ambos modelos. Realiza
-#   también un test F de Snedecon.
+#   también un test F de Snedecor.
 
 import xarray as xr 
 import numpy as np
 from matplotlib import pyplot as plt
 import cartopy.crs as ccrs
 from scipy.stats import mannwhitneyu
+from scipy.stats import f 
 import os
 from datetime import datetime
 
@@ -80,18 +81,33 @@ def mean_dewyield(input_folder):
     return mean_dewyield*24*365
 #--------------------------------------------------------------------------------------------------------------
 
+#----------------------------------------VAR DEW YIELD--------------------------------------------------------
+#Función que calcula la varianza de producción de rocío por año en todo el periodo
+def var_dewyield(input_folder):
+    #Creamos lista con los archivos
+    files = [os.path.join(input_folder, f) for f in os.listdir(input_folder) if f.endswith('.nc')]
+    #Cargamos y concatenamos los archivos
+    datasets = [xr.open_dataset(f) for f in files]
+    combined_ds = xr.concat(datasets, dim='time')
+    #Necesitamos el número de elementos para los grados de libertad
+    n_elements = combined_ds.sizes['time']
+    # Calculamos la media ignorando valores NaN
+    var_dewyield = combined_ds['dew_yield'].var(dim='time', skipna=True, ddof=1)
+    # Cerramos los datasets para liberar memoria
+    for ds in datasets:
+        ds.close()    
+    #Pasamos de mm/h a mm/año
+    return var_dewyield*24*365, n_elements
+#--------------------------------------------------------------------------------------------------------------
+
 #------------------------------------------MAIN--------------------------------------------------
 #....................PLOT COMPARACIÓN......................
 #Media del periodo CERRA
 input_folder='scripts\\dewyield_results\\CERRA'
-startTime = datetime.now()
 mean_dewyield_C=mean_dewyield(input_folder)
-print('Media CERRA: ', datetime.now() - startTime) #tiempo de ejecución
 #Media del periodo WRF
 input_folder='scripts\\dewyield_results\\WRF'
-startTime = datetime.now()
 mean_dewyield_W=mean_dewyield(input_folder)
-print('Media WRF: ', datetime.now() - startTime)
 
 #extraemos latitudes y longitudes para los plots
 fn='scripts\\dewyield_results\\CERRA\\dew_yield_CERRA_1991.nc'
@@ -136,5 +152,34 @@ else:
     print("No hay evidencia suficiente de que sean diferentes.")
 #..................................................
 
+#...........VARIANZAS..............
+#Cálculo de varianzas
+#CERRA
+input_folder='scripts\\dewyield_results\\CERRA'
+var_dewyield_C, dfC = var_dewyield(input_folder)
+#WRF
+input_folder='scripts\\dewyield_results\\WRF'
+var_dewyield_W, dfW = var_dewyield(input_folder)
 
+#Calculamos el cociente de varianzas
+var_coc=var_dewyield_W/var_dewyield_C
+
+#Plot de cociente de varianzas
+label='Cociente de varianzas (mm/año)'
+outroute='figures\\coc_var.png'
+plot(lons_C, lats_C, var_coc, label, 'cividis', outroute)
+#..............................................
+
+#..........TEST F DE SNEDECOR..............
+# Grados de libertad (Nº elementos - ddof), ddof=1
+df1 = dfC - 1  # Grados de libertad para CERRA
+df2 = dfW - 1  # Grados de libertad para WRF
+
+#El estadístico F se calcula como la razón de las varianzas, ya calculado.
+#Calculamos el valor p para cada celda y vemos en qué regiones las diferencias en la 
+#varianza son significativas.
+p_value=f.cdf(var_coc, df1, df2)
+label=f'Valores p menores que 0.05 (95% de confianza)'
+plot(lons_C, lats_C, p_value<0.05, label, 'plasma', 'figures\\p_value.png')
+#..........................................
 #--------------------------------------------------------------------------------------------------
