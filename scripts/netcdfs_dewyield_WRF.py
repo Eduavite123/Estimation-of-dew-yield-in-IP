@@ -11,8 +11,15 @@ from datetime import datetime
 #--------------------FUNCIÓN QUE CALCULA MEDIA ANUAL DE DEW YIELD P.U. TIEMPO-------------
 @njit
 def hpt(rh, t, h, n, V, sea, dt):
+    #rh en tanto por 1 (%/100)
+    #t en ºC
+    #h en km
+    #n en octas
+    #V en m/s
+    #dt en horas
+
     #CÁLCULO DE T_d (Punto de Rocío) ---> Ec. Lawrence (https://www.mdpi.com/2073-4441/11/4/733)
-    A=17.625 #ºC
+    A=17.625
     B=243.04 #ºC
     num=B*(np.log(rh)+A*t/(B+t))
     den=A-np.log(rh)-A*t/(B+t)
@@ -34,11 +41,23 @@ def hpt(rh, t, h, n, V, sea, dt):
     mask_v=np.where(V<4.4,V,0)
     #Solo tierra (máscara 3)
     sea=np.where(sea==0.0, np.nan, sea)
+    #descartamos días con niebla, para ello consideramos que se cumplan dos de estas condiciones:
+    #humedad relativa mayor o igual a 98%, diferencia entre Taire - T de rocío menores a 1 ºC y 
+    #nubosidad de al menos 7 octas (máscara 4)
+    mask_nubosidad=np.where(n>=7,1,0)
+    mask_hum_rel=np.where(rh>=0.98,1,0)
+    mask_temp=np.where((t-Td)<1,1,0)
+    # Creamos una máscara que considera al menos dos de las tres condiciones
+    mask_conditions = (mask_nubosidad + mask_hum_rel + mask_temp)
+    mask_at_least_two = np.where(mask_conditions >= 2, np.nan, 1)
+    #tenemos en cuenta solo días secos (máscara 5)
+        #en nuestro caso los datos de precipitacion son diarios en vez de cada 6h, por lo que 
+        #resulta más sencillo usar cdo para sumar por días y aplicar la máscara una vez calculados
+        #los datos de rocío
 
-    h_def=mask_ev*mask_v*sea #DEW YIELD PER HOUR
+    h_def=mask_ev*mask_v*sea* mask_at_least_two #DEW YIELD PER HOUR (w/o precipitation)
 
-    #MEDIA ANUAL
-    return h_def
+    return h_def * 24 * 365 #DEW YIELD PER YEAR (w/o precipitation)
 #-----------------------------------------------------------------------------------------------
 
 #------------------FUNCIÓN PARA DETECTAR AÑOS BISIESTOS-------------------
@@ -80,7 +99,6 @@ mask_sea_b_W = np.repeat(mask_sea, 1464, axis=0)
 fn='scripts\\data\\CERRA\\CERRA_IP_3h_1991.nc'
 cerraf=xr.open_dataset(fn)
 cerranb=cerraf.data_vars['lsm'].values
-
 lons_C=cerraf.coords['longitude'].values
 lats_C=cerraf.coords['latitude'].values
 cerraf.close()
@@ -89,7 +107,7 @@ cerraf=xr.open_dataset(fn)
 cerrab=cerraf.data_vars['lsm'].values
 cerraf.close()
 
-for year in range(1994,2020+1):
+for year in range(1991,2020+1):
     startTime = datetime.now() #para medir el tiempo de ejecución
 
     fn=f'scripts\\data\\WRF\\Evaluation\\cloudfrac_d01_{year}_time.nc'
@@ -167,6 +185,10 @@ for year in range(1994,2020+1):
             'dew_yield': (['time', 'latitude', 'longitude'], h_WRF)
         }
     )
-    #Falta añadir los atributos de las coordenadas y la variable
+    # Añadimos atributos a la coordenada temporal
+    nc_WRF['time'].attrs['units'] = f'hours since {year}-01-01 00:00:00'
+    nc_WRF['time'].attrs['calendar'] = 'gregorian'
 
     nc_WRF.to_netcdf(f'scripts\\dewyield_results\\WRF\\dew_yield_WRF_{year}.nc')
+
+    print(f'Año {year} terminado')
