@@ -10,12 +10,13 @@ from datetime import datetime
 
 #--------------------FUNCIÓN QUE CALCULA MEDIA ANUAL DE DEW YIELD P.U. TIEMPO-------------
 @njit
-def hpt(rh, t, h, n, V, sea, dt):
+def hpt(rh, t, h, n, V, sea, prep, dt):
     #rh en tanto por 1 (%/100)
     #t en ºC
     #h en km
     #n en octas
     #V en m/s
+    #prep en mm
     #dt en horas
 
     #CÁLCULO DE T_d (Punto de Rocío) ---> Ec. Lawrence (https://www.mdpi.com/2073-4441/11/4/733)
@@ -35,29 +36,34 @@ def hpt(rh, t, h, n, V, sea, dt):
     #dt = periodo de medidas en horas
     h=dt/12*(0.06*(Td-t)+RE)
 
-    #Cuando Δh/Δt<0 corresponde a evaporación, SE DESCARTA (máscara 1)
-    mask_ev=np.where(h>0,h,0)
-    #Cuando velocidad_viento>4.4m/s, Δh/Δt=0 (máscara 2)
+    #Cuando velocidad_viento>4.4m/s, Δh/Δt=0 (máscara 1)
     mask_v=np.where(V<4.4,V,0)
-    #Solo tierra (máscara 3)
-    sea=np.where(sea==0.0, np.nan, sea)
     #descartamos días con niebla, para ello consideramos que se cumplan dos de estas condiciones:
     #humedad relativa mayor o igual a 98%, diferencia entre Taire - T de rocío menores a 1 ºC y 
-    #nubosidad de al menos 7 octas (máscara 4)
+    #nubosidad de al menos 7 octas (máscara 2)
     mask_nubosidad=np.where(n>=7,1,0)
     mask_hum_rel=np.where(rh>=0.98,1,0)
     mask_temp=np.where((t-Td)<1,1,0)
     # Creamos una máscara que considera al menos dos de las tres condiciones
     mask_conditions = (mask_nubosidad + mask_hum_rel + mask_temp)
     mask_at_least_two = np.where(mask_conditions >= 2, np.nan, 1)
-    #tenemos en cuenta solo días secos (máscara 5)
-        #en nuestro caso los datos de precipitacion son diarios en vez de cada 6h, por lo que 
-        #resulta más sencillo usar cdo para sumar por días y aplicar la máscara una vez calculados
-        #los datos de rocío
 
-    h_def=mask_ev*mask_v*sea* mask_at_least_two #DEW YIELD PER HOUR (w/o precipitation)
+    h=mask_v*sea*mask_at_least_two*h
 
-    return h_def * 24 * 365 #DEW YIELD PER YEAR (w/o precipitation)
+    #Suma diaria: hay 4 valores de h por día (cada 6h)
+    for i in range(1, len(h), 4):
+        h[i]=h[i]+h[i+1]+h[i+2]+h[i+3]
+
+    #Cuando Δh/Δt<0 corresponde a evaporación, SE DESCARTA (máscara 3)
+    mask_ev=np.where(h>0,h,0)
+    #tenemos en cuenta solo días secos, precipitación<0.1mm (máscara 4)
+    mask_pr=np.where(prep<0.1,1,0)
+    #Solo tierra (máscara 5)
+    sea=np.where(sea==0.0, np.nan, sea)
+
+    h_def=mask_ev * mask_at_least_two * mask_pr * sea #DEW YIELD PER HOUR 
+
+    return h_def * 24 * 365 #DEW YIELD PER YEAR (mm/año)
 #-----------------------------------------------------------------------------------------------
 
 #------------------FUNCIÓN PARA DETECTAR AÑOS BISIESTOS-------------------
@@ -126,6 +132,10 @@ for year in range(1991,2020+1):
     windspeedf=xr.open_dataset(fn)
     v=windspeedf.data_vars['W10'].values #velocidad del viento a 10m (m/s)
     windspeedf.close()
+    fn=f'scripts\\precipitacion\\WRF\\pr_WRF_{year}.nc'
+    prf=xr.open_dataset(fn)
+    prep=prf.data_vars['precip'].values #precipitación (mm)
+    prf.close()
     #variables comunes de años bisiestos
     bis=bis_or_not(year)
     if bis==True:
@@ -170,8 +180,8 @@ for year in range(1991,2020+1):
     #Creamos el archivo NETCDF
     #variable temporal:
     start=np.datetime64(f'{year}-01-01T00:00:00')
-    end=np.datetime64(f'{year}-12-31T18:00:00')
-    time = np.arange(start, end+np.timedelta64(6,'h'), np.timedelta64(6, 'h'))
+    end=np.datetime64(f'{year}-12-31T00:00:00')
+    time = np.arange(start, end, np.timedelta64(24, 'h'))
     
     hours_since_start=(time-start).astype('timedelta64[h]').astype('float')
 
